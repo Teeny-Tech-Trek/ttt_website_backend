@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middlewares/auth.middleware');
 const {
   getDiscussions,
   createDiscussion,
@@ -25,33 +24,33 @@ const {
 
 // Discussions
 router.get('/discussions', getDiscussions);
-router.post('/discussions', authMiddleware, createDiscussion);
-router.post('/discussions/:id/like', authMiddleware, likeDiscussion);
+router.post('/discussions', createDiscussion);
+router.post('/discussions/:id/like', likeDiscussion);
 
 // Success Stories
 router.get('/success-stories', getSuccessStories);
 router.get('/success-stories/featured', getFeaturedStory);
-router.post('/success-stories', authMiddleware, createSuccessStory);
+router.post('/success-stories', createSuccessStory);
 
 // Events
 router.get('/events', getEvents);
-router.post('/events', authMiddleware, createEvent);
-router.post('/events/:id/rsvp', authMiddleware, rsvpEvent);
+router.post('/events', createEvent);
+router.post('/events/:id/rsvp', rsvpEvent);
 
 // Resources
 router.get('/resources', getResources);
-router.post('/resources', authMiddleware, createResource);
-router.post('/resources/:id/download', authMiddleware, downloadResource);
+router.post('/resources', createResource);
+router.post('/resources/:id/download', downloadResource);
 
 // Members
 router.get('/members', getMembers);
-router.post('/members', createMember); // No auth for join, but can add if needed
+router.post('/members', createMember);
 router.get('/members/search', searchMembers);
 
 // Blogs
 router.get('/blogs', getBlogs);
-router.post('/blogs', authMiddleware, createBlog);
-router.post('/blogs/:id/like', authMiddleware, likeBlog);
+router.post('/blogs', createBlog);
+router.post('/blogs/:id/like', likeBlog);
 
 // Newsletter
 router.post('/newsletter/subscribe', subscribeNewsletter);

@@ -81,6 +81,14 @@ const createMeetingEvent = async ({ name, email, startTime, endTime, formData })
   };
 };
 
+const deleteMeetingEvent = async (eventId) => {
+  if (!eventId) return;
+  const calendar = getCalendarClient();
+  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+  await calendar.events.delete({ calendarId, eventId, sendUpdates: "all" });
+};
+
 module.exports = {
   createMeetingEvent,
+  deleteMeetingEvent,
 };

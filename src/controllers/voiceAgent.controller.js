@@ -6,6 +6,10 @@ const getStartTime = ({ startTime, date, time }) => {
   return undefined;
 };
 
+// Note: voice-agent booking shares the consultation flow. The hardened service
+// rejects past dates, duplicate slots, and missing fields with a statusCode.
+
+
 exports.bookConsultation = async (req, res) => {
   try {
     const booking = await consultationService.bookMeeting({

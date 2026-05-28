@@ -19,19 +19,6 @@ const bookMeeting = async (req, res) => {
   }
 };
 
-const listBookings = async (_req, res) => {
-  try {
-    const bookings = await consultationService.listBookings();
-    res.status(200).json({ success: true, bookings });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to fetch bookings",
-    });
-  }
-};
-
 module.exports = {
   bookMeeting,
-  listBookings,
 };
