@@ -4,6 +4,8 @@
 const RAG_CHATBOT_API_URL = process.env.RAG_CHATBOT_API_URL || "http://127.0.0.1:8001/chat";
 const RAG_TIMEOUT_MS = Number(process.env.RAG_TIMEOUT_MS || 30000);
 const RAG_CHATBOT_HEALTH_URL = process.env.RAG_CHATBOT_HEALTH_URL || RAG_CHATBOT_API_URL.replace(/\/chat\/?$/, "/health");
+const RAG_CHATBOT_INTRO_URL = process.env.RAG_CHATBOT_INTRO_URL || RAG_CHATBOT_API_URL.replace(/\/chat\/?$/, "/api/chatbot/intro");
+const RAG_CHATBOT_LEAD_URL = process.env.RAG_CHATBOT_LEAD_URL || RAG_CHATBOT_API_URL.replace(/\/chat\/?$/, "/api/chatbot/lead");
 
 async function consumeSSEToText(response) {
   const reader = response.body.getReader();
@@ -57,10 +59,31 @@ async function consumeSSEToText(response) {
 }
 
 const chatbotController = {
-  intro: async (_req, res) => {
-    res.json({
-      message: "Hey there! I am Anisha, your AI assistant at Teeny Tech Trek. Ask me anything about our services, plans, support, or contact details.",
-    });
+  intro: async (req, res) => {
+    try {
+      const sessionId = req.query.session_id;
+      const url = sessionId
+        ? `${RAG_CHATBOT_INTRO_URL}?session_id=${encodeURIComponent(sessionId)}`
+        : RAG_CHATBOT_INTRO_URL;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), RAG_TIMEOUT_MS);
+      const ragResponse = await fetch(url, { method: "GET", signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!ragResponse.ok) {
+        return res.json({
+          message: "Hey there! I am Anisha, your AI assistant at Teeny Tech Trek. Ask me anything about our services, plans, support, or contact details.",
+        });
+      }
+      const data = await ragResponse.json();
+      return res.json(data);
+    } catch (error) {
+      console.error("Intro proxy error:", error);
+      return res.json({
+        message: "Hey there! I am Anisha, your AI assistant at Teeny Tech Trek. Ask me anything about our services, plans, support, or contact details.",
+      });
+    }
   },
 
   health: async (_req, res) => {
@@ -172,6 +195,7 @@ const chatbotController = {
           full_message: finalData.full_message || msg,
           scroll_to: finalData.scroll_to || null,
           open_login_modal: Boolean(finalData.open_login_modal),
+          form: finalData.form || null,
           metadata: finalData.metadata || {},
         });
       }
@@ -190,11 +214,35 @@ const chatbotController = {
         full_message: data.full_message || msg,
         scroll_to: data.scroll_to || null,
         open_login_modal: Boolean(data.open_login_modal),
+        form: data.form || null,
         metadata: data.metadata || {},
       });
     } catch (error) {
       console.error("Chat error:", error);
       return res.status(500).json({ error: "Oops, something went wrong on my end. Please try again." });
+    }
+  },
+
+  lead: async (req, res) => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), RAG_TIMEOUT_MS);
+      const ragResponse = await fetch(RAG_CHATBOT_LEAD_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body || {}),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      const text = await ragResponse.text();
+      res.status(ragResponse.status);
+      const contentType = ragResponse.headers.get("content-type");
+      if (contentType) res.setHeader("Content-Type", contentType);
+      return res.send(text);
+    } catch (error) {
+      console.error("Lead proxy error:", error);
+      return res.status(502).json({ error: "Lead capture service unavailable" });
     }
   },
 };

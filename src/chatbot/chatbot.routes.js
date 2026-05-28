@@ -10,4 +10,7 @@ router.get("/health", chatbotController.health);
 // POST user message
 router.post("/chat", chatbotController.chat);
 
+// POST lead capture form
+router.post("/lead", chatbotController.lead);
+
 module.exports = router;
