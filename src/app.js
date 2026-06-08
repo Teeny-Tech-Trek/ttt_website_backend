@@ -11,6 +11,7 @@ const contactRoutes = require("./routes/contact.routes");
 const newsletterRoutes = require("./routes/newsletter.routes");
 const consultationRoutes = require("./routes/consultation.routes");
 const voiceAgentRoutes = require("./routes/voiceAgent.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/api', contactRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/voice-agent", voiceAgentRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health check
 app.get("/", (req, res) => res.send("ttt-backend-new API is live"));

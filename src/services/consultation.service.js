@@ -1,5 +1,87 @@
 const Consultation = require("../models/consultation.model");
 const googleCalendarService = require("./googleCalendar.service");
+const sendEmail = require("../utils/mailer");
+
+const DISPLAY_TIMEZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || "Asia/Kolkata";
+
+// Escape user-provided values before interpolating them into HTML email bodies,
+// so input like "<b>" or "<script>" renders as text instead of markup.
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const formatDate = (date) =>
+  date.toLocaleDateString("en-GB", {
+    timeZone: DISPLAY_TIMEZONE,
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+const formatTime = (date) =>
+  date.toLocaleTimeString("en-GB", {
+    timeZone: DISPLAY_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+// Best-effort booking emails: a confirmation to the user and a notification to
+// the owner. Failures are logged but never propagate — the booking already
+// succeeded by the time this runs.
+const sendBookingEmails = async (booking) => {
+  // User-provided fields are escaped before going into HTML; date/time and the
+  // Google-generated meet link are system-controlled.
+  const safeName = escapeHtml(booking.name);
+  const safeEmail = escapeHtml(booking.email);
+  const date = formatDate(booking.startTime);
+  const time = `${formatTime(booking.startTime)} – ${formatTime(booking.endTime)} (${DISPLAY_TIMEZONE})`;
+  const meetLink = booking.googleMeetLink || booking.eventLink || "Will be shared shortly";
+  const meetHref = escapeHtml(booking.googleMeetLink);
+  const meetRow = booking.googleMeetLink
+    ? `<a href="${meetHref}">${meetHref}</a>`
+    : escapeHtml(meetLink);
+
+  const userHtml = `
+    <h2>Your consultation is booked 🎉</h2>
+    <p>Hi ${safeName},</p>
+    <p>Thanks for booking a consultation with Teeny Tech Trek. Here are your details:</p>
+    <ul>
+      <li><strong>Date:</strong> ${date}</li>
+      <li><strong>Time:</strong> ${time}</li>
+      <li><strong>Meeting Link:</strong> ${meetRow}</li>
+    </ul>
+    <p>We look forward to speaking with you!</p>
+    <p>— Teeny Tech Trek</p>
+  `;
+
+  const ownerHtml = `
+    <h2>New consultation booking</h2>
+    <ul>
+      <li><strong>Name:</strong> ${safeName}</li>
+      <li><strong>Email:</strong> ${safeEmail}</li>
+      <li><strong>Date:</strong> ${date}</li>
+      <li><strong>Time:</strong> ${time}</li>
+      <li><strong>Meeting Link:</strong> ${meetRow}</li>
+    </ul>
+  `;
+
+  try {
+    await sendEmail(booking.email, "Your Teeny Tech Trek consultation is confirmed", userHtml);
+    const ownerEmail = process.env.OWNER_EMAIL;
+    if (ownerEmail) {
+      await sendEmail(ownerEmail, `New consultation booking — ${booking.name}`, ownerHtml);
+    } else {
+      console.warn("✉️  Owner notification skipped: OWNER_EMAIL not set");
+    }
+  } catch (err) {
+    console.error("Booking email failed:", err);
+  }
+};
 
 const DEFAULT_DURATION_MINUTES = 30;
 const MAX_DURATION_MINUTES = 4 * 60;
@@ -110,6 +192,7 @@ const bookMeeting = async (data) => {
       status: "booked",
       formData,
     });
+    await sendBookingEmails(booking);
     return booking;
   } catch (err) {
     // Unique-index race: another request created the same booking between our
